@@ -1,0 +1,72 @@
+---
+- name: Install iptables and iptables-persistent
+  ansible.builtin.package:
+    name:
+      - iptables
+      - iptables-persistent
+    state: present
+
+- name: Ensure iptables is started and enabled
+  ansible.builtin.service:
+    name: iptables
+    state: started
+    enabled: true
+  when: firewall_enabled
+
+- name: Set default INPUT policy
+  ansible.builtin.iptables:
+    chain: INPUT
+    policy: "{{ firewall_default_policy_input }}"
+  notify: restart iptables
+
+- name: Set default OUTPUT policy
+  ansible.builtin.iptables:
+    chain: OUTPUT
+    policy: "{{ firewall_default_policy_output }}"
+  notify: restart iptables
+
+- name: Set default FORWARD policy
+  ansible.builtin.iptables:
+    chain: FORWARD
+    policy: "{{ firewall_default_policy_forward }}"
+  notify: restart iptables
+
+- name: Allow loopback traffic
+  ansible.builtin.iptables:
+    chain: INPUT
+    in_interface: lo
+    jump: ACCEPT
+  notify: restart iptables
+
+- name: Allow established and related connections
+  ansible.builtin.iptables:
+    chain: INPUT
+    ctstate: ESTABLISHED,RELATED
+    jump: ACCEPT
+  notify: restart iptables
+
+- name: Allow SSH before applying other rules
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "{{ firewall_ssh_port }}"
+    jump: ACCEPT
+    comment: Allow SSH
+  when: firewall_allow_ssh
+  notify: restart iptables
+
+- name: Configure custom iptables rules
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: "{{ item.protocol | default('tcp') }}"
+    destination_port: "{{ item.port }}"
+    jump: "{{ 'ACCEPT' if item.state | default('allow') == 'allow' else 'DROP' }}"
+    comment: "{{ item.name | default(omit) }}"
+  loop: "{{ firewall_rules }}"
+  when: firewall_rules | length > 0
+  notify: restart iptables
+
+- name: Save iptables rules
+  ansible.builtin.command: iptables-save
+  changed_when: false
+  when: firewall_enabled

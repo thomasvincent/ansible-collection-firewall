@@ -1,0 +1,64 @@
+---
+- name: Configure Database Server Firewall
+  hosts: database_servers
+  become: true
+
+  vars:
+    firewall_enabled: true
+    firewall_allow_ssh: true
+    firewall_ssh_port: 22
+    firewall_default_policy_input: DROP
+    firewall_default_policy_output: ACCEPT
+    firewall_default_policy_forward: DROP
+
+    # Application server subnet
+    app_server_subnet: "192.168.10.0/24"
+
+    firewall_rules:
+      # PostgreSQL
+      - name: Allow PostgreSQL from app servers
+        port: 5432
+        protocol: tcp
+        source: "{{ app_server_subnet }}"
+        state: allow
+        comment: "PostgreSQL access for application servers"
+
+      # MySQL/MariaDB
+      - name: Allow MySQL from app servers
+        port: 3306
+        protocol: tcp
+        source: "{{ app_server_subnet }}"
+        state: allow
+        comment: "MySQL access for application servers"
+
+      # Redis
+      - name: Allow Redis from app servers
+        port: 6379
+        protocol: tcp
+        source: "{{ app_server_subnet }}"
+        state: allow
+        comment: "Redis access for application servers"
+
+      # Monitoring
+      - name: Allow Prometheus metrics
+        port: 9100
+        protocol: tcp
+        source: "192.168.20.10"
+        state: allow
+        comment: "Prometheus node exporter"
+
+  roles:
+    - thomasvincent.firewall.firewall
+
+  post_tasks:
+    - name: Test database connectivity
+      ansible.builtin.wait_for:
+        port: 5432
+        host: "{{ ansible_default_ipv4.address }}"
+        timeout: 5
+      ignore_errors: true
+      register: db_connectivity
+
+    - name: Display connectivity status
+      ansible.builtin.debug:
+        msg: "Database port is {{ 'accessible' if db_connectivity is success else 'not accessible' }}"

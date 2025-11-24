@@ -1,0 +1,6 @@
+---
+firewall_service_name: nftables
+firewall_service_state: started
+firewall_service_enabled: true
+firewall_packages:
+  - nftables

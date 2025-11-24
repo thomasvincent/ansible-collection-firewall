@@ -1,0 +1,37 @@
+---
+- name: Include OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+    - "{{ ansible_distribution }}.yml"
+    - "{{ ansible_os_family }}.yml"
+    - "default.yml"
+
+- name: Validate firewall backend
+  ansible.builtin.assert:
+    that:
+      - firewall_backend in ['firewalld', 'ufw', 'iptables', 'nftables']
+    fail_msg: "firewall_backend must be one of: firewalld, ufw, iptables, nftables"
+
+- name: Include firewalld tasks
+  ansible.builtin.include_tasks: firewalld.yml
+  when: firewall_backend == 'firewalld'
+
+- name: Include UFW tasks
+  ansible.builtin.include_tasks: ufw.yml
+  when: firewall_backend == 'ufw'
+
+- name: Include iptables tasks
+  ansible.builtin.include_tasks: iptables.yml
+  when: firewall_backend == 'iptables'
+
+- name: Include nftables tasks
+  ansible.builtin.include_tasks: nftables.yml
+  when: firewall_backend == 'nftables'
+
+- name: Verify firewall is running
+  ansible.builtin.service:
+    name: "{{ firewall_service_name }}"
+    state: "{{ firewall_service_state }}"
+    enabled: "{{ firewall_service_enabled }}"
+  when: firewall_enabled

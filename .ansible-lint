@@ -1,0 +1,66 @@
+---
+profile: production
+
+exclude_paths:
+  - .cache/
+  - .github/
+  - tests/output/
+  - molecule/
+  - .ansible-lint
+  - .pre-commit-config.yaml
+
+skip_list:
+  - experimental
+  - role-name[path]
+
+warn_list:
+  - no-changed-when
+  - command-instead-of-module
+
+enable_list:
+  - yaml
+  - args
+  - empty-string-compare
+  - no-log-password
+  - no-same-owner
+
+# Enforce stricter rules
+strict: true
+
+# Set verbosity
+verbosity: 1
+
+# Use custom rules directory if needed
+# rulesdir:
+#   - ./custom-rules/
+
+# Mock modules for testing
+mock_modules:
+  - community.general.ufw
+  - ansible.posix.firewalld
+
+# Mock roles for testing
+mock_roles:
+  - thomasvincent.firewall.firewall
+
+kinds:
+  - yaml: "**/*.{yaml,yml}"
+  - playbook: "**/playbooks/*.{yml,yaml}"
+  - tasks: "**/tasks/*.{yml,yaml}"
+  - handlers: "**/handlers/*.{yml,yaml}"
+  - vars: "**/vars/*.{yml,yaml}"
+  - defaults: "**/defaults/*.{yml,yaml}"
+  - meta: "**/meta/main.{yml,yaml}"
+  - molecule: "**/molecule/*/*.{yml,yaml}"
+
+# Offline mode for CI/CD
+offline: false
+
+# Progressive mode (show only new issues)
+progressive: false
+
+# Write output to file
+# output_file: ansible-lint-results.txt
+
+# Parseable output for CI/CD
+# parseable: true

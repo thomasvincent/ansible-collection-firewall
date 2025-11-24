@@ -1,0 +1,98 @@
+---
+- name: Use Custom Firewall Module
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Display detected firewall backend
+      ansible.builtin.debug:
+        msg: "Using firewall backend: {{ firewall_backend | default('auto-detect') }}"
+
+    - name: Allow HTTP traffic
+      thomasvincent.firewall.firewall_rule:
+        name: allow_http
+        port: 80
+        protocol: tcp
+        action: accept
+        state: present
+      register: http_rule
+
+    - name: Display HTTP rule result
+      ansible.builtin.debug:
+        var: http_rule
+
+    - name: Allow HTTPS traffic
+      thomasvincent.firewall.firewall_rule:
+        name: allow_https
+        port: 443
+        protocol: tcp
+        action: accept
+        state: present
+
+    - name: Allow custom application port range
+      thomasvincent.firewall.firewall_rule:
+        name: allow_app_range
+        port: "8080-8090"
+        protocol: tcp
+        action: accept
+        state: present
+
+    - name: Allow SSH from specific subnet
+      thomasvincent.firewall.firewall_rule:
+        name: allow_admin_ssh
+        port: 22
+        protocol: tcp
+        source: 192.168.1.0/24
+        action: accept
+        state: present
+
+    - name: Block traffic from malicious IP
+      thomasvincent.firewall.firewall_rule:
+        name: block_malicious_ip
+        destination: 10.0.0.100
+        action: drop
+        direction: outbound
+        state: present
+
+    - name: Remove old firewall rule
+      thomasvincent.firewall.firewall_rule:
+        name: old_custom_rule
+        port: 9000
+        protocol: tcp
+        state: absent
+
+    - name: Create rule with high priority
+      thomasvincent.firewall.firewall_rule:
+        name: priority_rule
+        port: 3306
+        protocol: tcp
+        source: 192.168.10.0/24
+        action: accept
+        priority: 10
+        state: present
+
+    - name: Use filter to validate ports
+      ansible.builtin.debug:
+        msg: "Port {{ item }} is {{ item | thomasvincent.firewall.validate_port | ternary('valid', 'invalid') }}"
+      loop:
+        - "80"
+        - "443"
+        - "8080-8090"
+        - "99999"
+        - "invalid"
+      ignore_errors: true
+
+    - name: Convert services to ports
+      ansible.builtin.debug:
+        msg: "{{ item }} uses port {{ item | thomasvincent.firewall.service_to_port }}"
+      loop:
+        - http
+        - https
+        - ssh
+        - mysql
+      when: item | thomasvincent.firewall.service_to_port is not none
+
+    - name: Lookup multiple service ports
+      ansible.builtin.debug:
+        msg: "Ports for web services: {{ lookup('thomasvincent.firewall.firewall_ports', 'http', 'https') }}"

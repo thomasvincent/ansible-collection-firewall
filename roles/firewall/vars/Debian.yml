@@ -1,0 +1,4 @@
+---
+firewall_service_name: ufw
+firewall_packages:
+  - ufw

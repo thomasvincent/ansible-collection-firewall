@@ -1,0 +1,280 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sanity:
+    name: Sanity Tests (Ansible ${{ matrix.ansible }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ansible:
+          - stable-2.14
+          - stable-2.15
+          - stable-2.16
+          - devel
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          path: ansible_collections/thomasvincent/firewall
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Ansible
+        run: pip install https://github.com/ansible/ansible/archive/${{ matrix.ansible }}.tar.gz --disable-pip-version-check
+
+      - name: Run sanity tests
+        working-directory: ansible_collections/thomasvincent/firewall
+        run: ansible-test sanity --docker -v --color
+
+  lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install ansible-core ansible-lint yamllint
+
+      - name: Run ansible-lint
+        run: ansible-lint
+
+      - name: Run yamllint
+        run: yamllint .
+
+  molecule:
+    name: Molecule Test (${{ matrix.distro }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - centos9
+          - ubuntu2204
+          - debian12
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install molecule[docker] ansible-core docker
+
+      - name: Run Molecule tests
+        run: molecule test
+        working-directory: roles/firewall
+        env:
+          MOLECULE_DISTRO: ${{ matrix.distro }}
+          PY_COLORS: '1'
+          ANSIBLE_FORCE_COLOR: '1'
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: molecule-results-${{ matrix.distro }}
+          path: roles/firewall/molecule/default/.molecule
+          retention-days: 7
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [sanity, lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          path: ansible_collections/thomasvincent/firewall
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Ansible
+        run: pip install ansible-core
+
+      - name: Run integration tests
+        working-directory: ansible_collections/thomasvincent/firewall
+        run: ansible-test integration --docker ubuntu2204 -v --color
+
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          path: ansible_collections/thomasvincent/firewall
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Ansible
+        run: pip install ansible-core pytest pytest-ansible
+
+      - name: Run unit tests
+        working-directory: ansible_collections/thomasvincent/firewall
+        run: ansible-test units --docker -v --color
+
+  docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install ansible-core antsibull-docs
+
+      - name: Build documentation
+        run: |
+          antsibull-docs sphinx-init --use-current --dest-dir docs thomasvincent.firewall
+          cd docs
+          pip install -r requirements.txt
+          ./build.sh
+
+      - name: Upload documentation
+        uses: actions/upload-artifact@v5
+        with:
+          name: documentation
+          path: docs/build/html
+          retention-days: 7
+
+  build:
+    name: Build Collection
+    runs-on: ubuntu-latest
+    needs: [sanity, lint, molecule]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Ansible
+        run: pip install ansible-core
+
+      - name: Build collection
+        run: ansible-galaxy collection build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: collection
+          path: "*.tar.gz"
+          retention-days: 7
+
+  test-install:
+    name: Test Installation
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Ansible
+        run: pip install ansible-core
+
+      - name: Download artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: collection
+
+      - name: Install collection
+        run: ansible-galaxy collection install *.tar.gz
+
+      - name: Test collection
+        run: |
+          ansible-galaxy collection list thomasvincent.firewall
+          ansible-doc thomasvincent.firewall.firewall_rule
+
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [sanity, lint, molecule, integration, unit, docs, build, test-install]
+    if: always()
+
+    steps:
+      - name: Check job status
+        run: |
+          echo "### CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Sanity Tests | ${{ needs.sanity.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Ansible Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Molecule Tests | ${{ needs.molecule.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Tests | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.unit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Documentation | ${{ needs.docs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Collection | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Install | ${{ needs.test-install.result }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check overall status
+        if: |
+          needs.sanity.result != 'success' ||
+          needs.lint.result != 'success' ||
+          needs.molecule.result != 'success' ||
+          needs.integration.result != 'success' ||
+          needs.unit.result != 'success' ||
+          needs.build.result != 'success' ||
+          needs.test-install.result != 'success'
+        run: |
+          echo "::error::One or more CI jobs failed"
+          exit 1

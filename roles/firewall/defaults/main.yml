@@ -1,0 +1,48 @@
+---
+# Firewall backend (firewalld, ufw, iptables, nftables)
+firewall_backend: "{{ 'firewalld' if ansible_os_family == 'RedHat' else 'ufw' }}"
+
+# Enable firewall
+firewall_enabled: true
+
+# Default policy
+firewall_default_policy_input: DROP
+firewall_default_policy_forward: DROP
+firewall_default_policy_output: ACCEPT
+
+# Allow SSH by default (port 22)
+firewall_allow_ssh: true
+firewall_ssh_port: 22
+
+# Firewall rules
+firewall_rules: []
+#  - name: "Allow HTTP"
+#    port: 80
+#    protocol: tcp
+#    state: enabled
+#  - name: "Allow HTTPS"
+#    port: 443
+#    protocol: tcp
+#    state: enabled
+
+# Firewall zones (for firewalld)
+firewall_zones:
+  - name: public
+    state: enabled
+    sources: []
+    services:
+      - ssh
+      - dhcpv6-client
+    ports: []
+
+# UFW specific
+ufw_logging: "on"
+ufw_ipv6: true
+
+# Service management
+firewall_service_enabled: true
+firewall_service_state: started
+
+# Fail2ban integration
+firewall_fail2ban_enabled: false
+firewall_fail2ban_jails: []

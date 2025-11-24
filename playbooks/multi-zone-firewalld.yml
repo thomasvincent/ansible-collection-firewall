@@ -1,0 +1,84 @@
+---
+- name: Configure Multi-Zone Firewall (firewalld)
+  hosts: rhel_servers
+  become: true
+
+  vars:
+    firewall_enabled: true
+    firewall_backend: firewalld
+    firewall_allow_ssh: true
+
+    firewall_zones:
+      # Public zone - Internet-facing services
+      - name: public
+        state: enabled
+        services:
+          - ssh
+          - http
+          - https
+        ports:
+          - port: 8080
+            protocol: tcp
+          - port: 8443
+            protocol: tcp
+
+      # Internal zone - Private network services
+      - name: internal
+        state: enabled
+        services:
+          - ssh
+          - mysql
+          - postgresql
+          - redis
+        ports:
+          - port: 9090
+            protocol: tcp
+            comment: "Prometheus"
+          - port: 3000
+            protocol: tcp
+            comment: "Grafana"
+
+      # DMZ zone - Demilitarized zone
+      - name: dmz
+        state: enabled
+        services:
+          - http
+          - https
+        ports:
+          - port: 443
+            protocol: tcp
+
+      # Trusted zone - VPN and admin access
+      - name: trusted
+        state: enabled
+        services:
+          - ssh
+        ports:
+          - port: 22
+            protocol: tcp
+
+  roles:
+    - thomasvincent.firewall.firewall
+
+  post_tasks:
+    - name: Get active zones
+      ansible.builtin.command: firewall-cmd --get-active-zones
+      register: active_zones
+      changed_when: false
+
+    - name: Display active zones
+      ansible.builtin.debug:
+        msg: "{{ active_zones.stdout_lines }}"
+
+    - name: Verify zone configuration
+      ansible.builtin.command: "firewall-cmd --zone={{ item.name }} --list-all"
+      loop: "{{ firewall_zones }}"
+      register: zone_config
+      changed_when: false
+
+    - name: Display zone configurations
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ zone_config.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"

@@ -1,0 +1,34 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+
+  vars:
+    firewall_enabled: true
+    firewall_allow_ssh: true
+    firewall_ssh_port: 22
+    firewall_default_policy_input: DROP
+    firewall_default_policy_output: ACCEPT
+    firewall_default_policy_forward: DROP
+    firewall_rules:
+      - name: Allow HTTP
+        port: 80
+        protocol: tcp
+        state: allow
+      - name: Allow HTTPS
+        port: 443
+        protocol: tcp
+        state: allow
+      - name: Allow custom app
+        port: 8080
+        protocol: tcp
+        state: allow
+
+  tasks:
+    - name: Include firewall role
+      ansible.builtin.include_role:
+        name: firewall
+
+    - name: Display firewall backend being tested
+      ansible.builtin.debug:
+        msg: "Testing with firewall backend: {{ firewall_backend }}"

@@ -1,0 +1,46 @@
+---
+- name: Configure Web Server Firewall
+  hosts: webservers
+  become: true
+
+  vars:
+    firewall_enabled: true
+    firewall_allow_ssh: true
+    firewall_ssh_port: 22
+    firewall_default_policy_input: DROP
+    firewall_default_policy_output: ACCEPT
+    firewall_default_policy_forward: DROP
+
+    firewall_rules:
+      - name: Allow HTTP
+        port: 80
+        protocol: tcp
+        state: allow
+        comment: "Allow HTTP traffic"
+
+      - name: Allow HTTPS
+        port: 443
+        protocol: tcp
+        state: allow
+        comment: "Allow HTTPS traffic"
+
+      - name: Allow custom application
+        port: 8080
+        protocol: tcp
+        state: allow
+        comment: "Custom web application"
+
+  roles:
+    - thomasvincent.firewall.firewall
+
+  post_tasks:
+    - name: Verify firewall is running
+      ansible.builtin.service:
+        name: "{{ firewall_service_name }}"
+        state: started
+      check_mode: true
+      register: firewall_status
+
+    - name: Display firewall status
+      ansible.builtin.debug:
+        msg: "Firewall is {{ firewall_status.state }}"

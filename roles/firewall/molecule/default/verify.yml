@@ -1,0 +1,110 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Set firewall service name based on backend
+      ansible.builtin.set_fact:
+        expected_service: "{{ firewall_backend if firewall_backend != 'iptables' else 'iptables' }}"
+
+    - name: Check if firewall service is running
+      ansible.builtin.service_facts:
+
+    - name: Verify firewall service is active
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services[expected_service + '.service'] is defined
+          - ansible_facts.services[expected_service + '.service'].state == 'running'
+        fail_msg: "Firewall service {{ expected_service }} is not running"
+        success_msg: "Firewall service {{ expected_service }} is running"
+
+    - name: Verify firewall service is enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services[expected_service + '.service'].status == 'enabled'
+        fail_msg: "Firewall service {{ expected_service }} is not enabled"
+        success_msg: "Firewall service {{ expected_service }} is enabled"
+
+    - name: Check firewalld rules (RHEL family)
+      when: firewall_backend == 'firewalld'
+      block:
+        - name: Get firewalld active zones
+          ansible.builtin.command: firewall-cmd --get-active-zones
+          register: firewalld_zones
+          changed_when: false
+
+        - name: Verify firewalld is configured
+          ansible.builtin.assert:
+            that:
+              - firewalld_zones.stdout | length > 0
+            fail_msg: "No active firewalld zones found"
+            success_msg: "Firewalld zones are configured"
+
+    - name: Check UFW rules (Debian family with UFW)
+      when: firewall_backend == 'ufw'
+      block:
+        - name: Get UFW status
+          ansible.builtin.command: ufw status verbose
+          register: ufw_status
+          changed_when: false
+
+        - name: Verify UFW is active
+          ansible.builtin.assert:
+            that:
+              - "'Status: active' in ufw_status.stdout"
+            fail_msg: "UFW is not active"
+            success_msg: "UFW is active and configured"
+
+        - name: Verify SSH rule exists in UFW
+          ansible.builtin.assert:
+            that:
+              - "'22/tcp' in ufw_status.stdout or '22' in ufw_status.stdout"
+            fail_msg: "SSH rule not found in UFW"
+            success_msg: "SSH rule exists in UFW"
+
+    - name: Check iptables rules
+      when: firewall_backend == 'iptables'
+      block:
+        - name: Get iptables rules
+          ansible.builtin.command: iptables -L -n
+          register: iptables_rules
+          changed_when: false
+
+        - name: Verify iptables has rules
+          ansible.builtin.assert:
+            that:
+              - iptables_rules.stdout | length > 0
+            fail_msg: "No iptables rules found"
+            success_msg: "Iptables rules are configured"
+
+    - name: Check nftables rules
+      when: firewall_backend == 'nftables'
+      block:
+        - name: Get nftables ruleset
+          ansible.builtin.command: nft list ruleset
+          register: nftables_rules
+          changed_when: false
+
+        - name: Verify nftables has rules
+          ansible.builtin.assert:
+            that:
+              - nftables_rules.stdout | length > 0
+              - "'table inet filter' in nftables_rules.stdout"
+            fail_msg: "No nftables rules found"
+            success_msg: "Nftables rules are configured"
+
+    - name: Verify SSH port is accessible
+      ansible.builtin.wait_for:
+        port: 22
+        host: "{{ ansible_default_ipv4.address | default('127.0.0.1') }}"
+        timeout: 5
+      delegate_to: localhost
+      become: false
+      failed_when: false
+      register: ssh_check
+
+    - name: Report SSH accessibility
+      ansible.builtin.debug:
+        msg: "SSH port 22 is {{ 'accessible' if ssh_check is success else 'not accessible' }}"

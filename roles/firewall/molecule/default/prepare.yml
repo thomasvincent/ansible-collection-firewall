@@ -1,0 +1,26 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Update apt cache (Debian family)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
+      changed_when: false
+
+    - name: Install Python3 and pip
+      ansible.builtin.package:
+        name:
+          - python3
+          - python3-pip
+        state: present
+
+    - name: Ensure systemd is running
+      ansible.builtin.service:
+        name: systemd-logind
+        state: started
+      failed_when: false
+      changed_when: false

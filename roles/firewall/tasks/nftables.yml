@@ -1,0 +1,48 @@
+---
+- name: Install nftables
+  ansible.builtin.package:
+    name: nftables
+    state: present
+
+- name: Ensure nftables is started and enabled
+  ansible.builtin.service:
+    name: nftables
+    state: started
+    enabled: true
+  when: firewall_enabled
+
+- name: Create nftables configuration directory
+  ansible.builtin.file:
+    path: /etc/nftables
+    state: directory
+    mode: '0755'
+
+- name: Deploy nftables base configuration
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nftables
+
+- name: Create custom rules configuration
+  ansible.builtin.template:
+    src: nftables-custom.conf.j2
+    dest: /etc/nftables/custom-rules.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nftables
+  when: firewall_rules | length > 0
+
+- name: Validate nftables configuration
+  ansible.builtin.command: nft -c -f /etc/nftables.conf
+  changed_when: false
+  register: nftables_validation
+  failed_when: nftables_validation.rc != 0
+
+- name: Apply nftables configuration
+  ansible.builtin.command: nft -f /etc/nftables.conf
+  when: firewall_enabled
+  changed_when: true

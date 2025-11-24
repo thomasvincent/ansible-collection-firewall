@@ -1,0 +1,7 @@
+---
+firewall_service_name: iptables
+firewall_service_state: started
+firewall_service_enabled: true
+firewall_packages:
+  - iptables
+  - iptables-persistent

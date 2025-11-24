@@ -1,0 +1,31 @@
+namespace: thomasvincent
+name: firewall
+version: 1.0.0
+readme: README.md
+authors:
+  - Thomas Vincent <thomas@example.com>
+description: Enterprise-grade firewall management collection for Linux systems
+license:
+  - MIT
+license_file: LICENSE
+tags:
+  - firewall
+  - security
+  - iptables
+  - ufw
+  - firewalld
+  - nftables
+  - networking
+dependencies: {}
+repository: https://github.com/thomasvincent/ansible-collection-firewall
+documentation: https://github.com/thomasvincent/ansible-collection-firewall
+homepage: https://github.com/thomasvincent/ansible-collection-firewall
+issues: https://github.com/thomasvincent/ansible-collection-firewall/issues
+build_ignore:
+  - .gitignore
+  - .secrets.baseline
+  - .pre-commit-config.yaml
+  - tests/output
+  - '*.pyc'
+  - '*.retry'
+  - __pycache__

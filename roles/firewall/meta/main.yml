@@ -1,0 +1,33 @@
+---
+galaxy_info:
+  role_name: firewall
+  author: Thomas Vincent
+  description: Enterprise firewall management for Linux systems
+  company: thomasvincent
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+    - name: Fedora
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+  galaxy_tags:
+    - firewall
+    - security
+    - iptables
+    - ufw
+    - firewalld
+    - networking
+    
+dependencies: []

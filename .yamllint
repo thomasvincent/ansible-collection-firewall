@@ -1,0 +1,53 @@
+---
+extends: default
+
+rules:
+  braces:
+    max-spaces-inside: 1
+    level: error
+  brackets:
+    max-spaces-inside: 1
+    level: error
+  colons:
+    max-spaces-after: -1
+    level: error
+  commas:
+    max-spaces-after: -1
+    level: error
+  comments:
+    require-starting-space: true
+    min-spaces-from-content: 2
+  comments-indentation:
+    level: warning
+  document-start:
+    present: true
+  empty-lines:
+    max: 2
+    level: error
+  hyphens:
+    level: error
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+  key-duplicates:
+    level: error
+  line-length:
+    max: 160
+    level: warning
+  new-line-at-end-of-file:
+    level: error
+  new-lines:
+    type: unix
+  trailing-spaces:
+    level: error
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no']
+    check-keys: false
+
+ignore: |
+  .cache/
+  .github/
+  tests/output/
+  venv/
+  .venv/

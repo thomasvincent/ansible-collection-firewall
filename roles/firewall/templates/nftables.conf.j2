@@ -1,0 +1,44 @@
+#!/usr/sbin/nft -f
+# {{ ansible_managed }}
+
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy {{ firewall_default_policy_input | lower }};
+
+        # Allow established and related connections
+        ct state established,related accept
+
+        # Allow loopback
+        iif lo accept
+
+{% if firewall_allow_ssh %}
+        # Allow SSH
+        tcp dport {{ firewall_ssh_port }} accept comment "Allow SSH"
+{% endif %}
+
+{% if firewall_rules | length > 0 %}
+        # Custom rules
+{% for rule in firewall_rules %}
+        {{ rule.protocol | default('tcp') }} dport {{ rule.port }} {{ 'accept' if rule.state | default('allow') == 'allow' else 'drop' }} comment "{{ rule.name | default('Custom rule') }}"
+{% endfor %}
+{% endif %}
+
+        # Drop invalid packets
+        ct state invalid drop
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy {{ firewall_default_policy_forward | lower }};
+    }
+
+    chain output {
+        type filter hook output priority 0; policy {{ firewall_default_policy_output | lower }};
+    }
+}
+
+{% if firewall_rules | length > 0 %}
+# Include custom rules
+include "/etc/nftables/custom-rules.conf"
+{% endif %}

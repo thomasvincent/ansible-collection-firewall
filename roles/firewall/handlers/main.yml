@@ -1,0 +1,20 @@
+---
+- name: reload firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: reloaded
+
+- name: reload ufw
+  ansible.builtin.service:
+    name: ufw
+    state: reloaded
+
+- name: restart iptables
+  ansible.builtin.service:
+    name: iptables
+    state: restarted
+
+- name: reload nftables
+  ansible.builtin.service:
+    name: nftables
+    state: reloaded

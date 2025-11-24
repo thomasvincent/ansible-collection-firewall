@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# Custom firewall rules
+
+{% for rule in firewall_rules %}
+# {{ rule.name | default('Custom rule ' ~ loop.index) }}
+{% endfor %}
