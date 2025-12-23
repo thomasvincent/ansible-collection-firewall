@@ -232,7 +232,7 @@ jobs:
         run: pip install ansible-core
 
       - name: Download artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: collection
 
