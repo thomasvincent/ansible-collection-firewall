@@ -1,0 +1,12 @@
+---
+- name: Restart nftables
+  ansible.builtin.service:
+    name: "{{ nftables_service_name }}"
+    state: restarted
+  listen: Restart nftables
+
+- name: Reload nftables
+  ansible.builtin.command:
+    cmd: "nft -f {{ nftables_conf_path }}"
+  listen: Reload nftables
+  changed_when: true
