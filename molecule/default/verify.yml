@@ -1,0 +1,40 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check nftables service is running
+      ansible.builtin.service:
+        name: nftables
+        state: started
+      check_mode: true
+      register: nftables_service
+      failed_when: nftables_service.changed
+
+    - name: Check nftables config file exists
+      ansible.builtin.stat:
+        path: /etc/nftables.conf
+      register: nftables_conf
+      failed_when: not nftables_conf.stat.exists
+
+    - name: Check nftables config file permissions
+      ansible.builtin.stat:
+        path: /etc/nftables.conf
+      register: nftables_conf_perms
+      failed_when: nftables_conf_perms.stat.mode != '0600'
+
+    - name: Verify nftables ruleset is loaded
+      ansible.builtin.command:
+        cmd: nft list ruleset
+      register: nftables_ruleset
+      changed_when: false
+      failed_when: "'table inet filter' not in nftables_ruleset.stdout"
+
+    - name: Verify SSH port is allowed
+      ansible.builtin.command:
+        cmd: nft list ruleset
+      register: nftables_ssh
+      changed_when: false
+      failed_when: "'dport 22' not in nftables_ssh.stdout"
