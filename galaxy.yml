@@ -8,4 +8,11 @@ readme: README.md
 homepage: https://github.com/thomasvincent/ansible-collection-firewall
 repository: https://github.com/thomasvincent/ansible-collection-firewall
 issues: https://github.com/thomasvincent/ansible-collection-firewall/issues
+tags:
+  - firewall
+  - nftables
+  - iptables
+  - security
+  - networking
+  - compliance
 dependencies: {}

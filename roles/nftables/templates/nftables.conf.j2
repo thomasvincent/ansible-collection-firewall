@@ -64,7 +64,7 @@ table inet filter {
 {% endfor %}
 
         # Log dropped packets (optional)
-{% if firewall_defaults.log_dropped | default(false) %}
+{% if firewall_defaults.log_drops | default(false) %}
         log prefix "nftables dropped: " counter drop
 {% else %}
         counter drop
